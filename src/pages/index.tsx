@@ -10,7 +10,7 @@ import commonStyles from '../styles/common.module.scss';
 import styles from './home.module.scss';
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { ptBR }  from 'date-fns/locale';
+import { ptBR } from 'date-fns/locale';
 import Head from 'next/head';
 
 interface Post {
@@ -29,12 +29,13 @@ interface PostPagination {
 }
 
 interface HomeProps {
-  postsPagination: PostPagination;
+  postsPagination: PostPagination,
+  preview: boolean
 }
 
-export default function Home({ postsPagination }: HomeProps): JSX.Element {
+export default function Home({ postsPagination, preview }: HomeProps): JSX.Element {
 
-  const formattedPost = postsPagination.results.map (posts => {
+  const formattedPost = postsPagination.results.map(posts => {
     return {
       ...posts,
       first_publication_date: format(
@@ -52,19 +53,19 @@ export default function Home({ postsPagination }: HomeProps): JSX.Element {
   const [nextPage, setNextPage] = useState(postsPagination.next_page)
   const [currentPage, setCurrentPage] = useState(1)
 
-  const handleNextPage = async ():Promise<void> => {
+  const handleNextPage = async (): Promise<void> => {
 
     if (currentPage != 1 && nextPage === null) {
       return
     }
 
     const postResults = await fetch(`${nextPage}`)
-    .then ((res) => res.json())
+      .then((res) => res.json())
 
     setNextPage(postResults.next_page)
     setCurrentPage(postResults.page)
 
-    const newPosts = postResults.results.map (post => {
+    const newPosts = postResults.results.map(post => {
       return {
         uid: post.uid,
         first_publication_date: format(
@@ -85,7 +86,7 @@ export default function Home({ postsPagination }: HomeProps): JSX.Element {
 
     setPosts([...posts, ...newPosts])
   }
-  
+
   return (
     <>
       <Head>
@@ -96,12 +97,12 @@ export default function Home({ postsPagination }: HomeProps): JSX.Element {
         <Header />
 
         <div className={styles.posts}>
-          {posts.map (post => {
+          {posts.map(post => {
             return (
               <Link href={`/post/${post.uid}`} key={post.uid}>
                 <a className={styles.post}>
-                <strong>{post.data.title}</strong>
-                <p>{post.data.subtitle}</p>
+                  <strong>{post.data.title}</strong>
+                  <p>{post.data.subtitle}</p>
                   <ul>
                     <li>
                       <FiCalendar />
@@ -113,16 +114,28 @@ export default function Home({ postsPagination }: HomeProps): JSX.Element {
                     </li>
                   </ul>
                 </a>
-          </Link>  
+              </Link>
             )
           })}
           {nextPage && (
-             <button 
-             type="button"
-             onClick={handleNextPage}
-           >
-             Carregar mais posts
-           </button> 
+            <button
+              type="button"
+              onClick={handleNextPage}
+            >
+              Carregar mais posts
+            </button>
+          )}
+
+          {preview && (
+            <aside>
+              <Link href="/api/exit-preview">
+                <a
+                  className={commonStyles.preview}
+                >
+                  Sair do modo Preview
+                </a>
+              </Link>
+            </aside>
           )}
         </div>
       </main>
@@ -130,38 +143,39 @@ export default function Home({ postsPagination }: HomeProps): JSX.Element {
   )
 }
 
-export const getStaticProps: GetStaticProps = async () => {
+export const getStaticProps: GetStaticProps = async ({ preview = false }) => {
 
   const prismic = getPrismicClient();
 
   const postsResponse = await prismic.query(
-    [Prismic.Predicates.at('document.type', 'posts')], 
+    [Prismic.Predicates.at('document.type', 'posts')],
     {
-      pageSize:2
+      pageSize: 2
     }
   );
-  
-    const posts = postsResponse.results.map( post => {
-      return {
-        uid: post.uid,
-        first_publication_date: post.first_publication_date,
 
-        data: {
-          title: post.data.title,
-          subtitle: post.data.subtitle,
-          author: post.data.author
-        }
+  const posts = postsResponse.results.map(post => {
+    return {
+      uid: post.uid,
+      first_publication_date: post.first_publication_date,
+
+      data: {
+        title: post.data.title,
+        subtitle: post.data.subtitle,
+        author: post.data.author
       }
-    })
-
-    const postsPagination = {
-      next_page: postsResponse.next_page,
-      results: posts
     }
+  })
+
+  const postsPagination = {
+    next_page: postsResponse.next_page,
+    results: posts
+  }
 
   return {
     props: {
-      postsPagination
+      postsPagination,
+      preview
     }
   }
 
